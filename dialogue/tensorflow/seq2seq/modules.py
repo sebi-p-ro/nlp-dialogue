@@ -30,11 +30,13 @@ from dialogue.tools import ProgressBar
 
 class Seq2SeqModule(Modules):
     def __init__(self, loss_metric: tf.keras.metrics.Mean, accuracy_metric: tf.keras.metrics.SparseCategoricalAccuracy,
-                 batch_size: int, buffer_size: int, max_length: int, dict_path: str = "", model: tf.keras.Model = None,
-                 encoder: tf.keras.Model = None, decoder: tf.keras.Model = None):
-        super(Seq2SeqModule, self).__init__(loss_metric=loss_metric, accuracy_metric=accuracy_metric,
-                                            batch_size=batch_size, buffer_size=buffer_size, max_length=max_length,
-                                            dict_path=dict_path, model=model, encoder=encoder, decoder=decoder)
+                 batch_size: int, buffer_size: int, max_sentence: int, data_type: str, dict_path: str = "",
+                 model: tf.keras.Model = None, encoder: tf.keras.Model = None, decoder: tf.keras.Model = None):
+        super(Seq2SeqModule, self).__init__(
+            loss_metric=loss_metric, accuracy_metric=accuracy_metric, data_type=data_type, batch_size=batch_size,
+            buffer_size=buffer_size, max_sentence=max_sentence, dict_path=dict_path, model=model, encoder=encoder,
+            decoder=decoder
+        )
 
     def _train_step(self, batch_dataset: tuple, optimizer: tf.optimizers.Adam, train_loss: tf.keras.metrics.Mean,
                     train_accuracy: tf.keras.metrics.SparseCategoricalAccuracy, *args, **kwargs) -> dict:
@@ -51,7 +53,7 @@ class Seq2SeqModule(Modules):
             dec_input = tf.expand_dims(input=[kwargs.get("start_sign", 2)] * self.batch_size, axis=1)
 
             loss = 0
-            for t in range(1, self.max_length):
+            for t in range(1, self.max_sentence):
                 if sum(batch_dataset[1][:, t]) == 0:
                     break
 
@@ -93,7 +95,7 @@ class Seq2SeqModule(Modules):
             dec_input = tf.expand_dims(input=[kwargs.get("start_sign", 2)] * self.batch_size, axis=1)
 
             loss = 0
-            for t in range(1, self.max_length):
+            for t in range(1, self.max_sentence):
                 if sum(target[:, t]) == 0:
                     break
 
@@ -123,15 +125,15 @@ class Seq2SeqModule(Modules):
         tokenizer = load_tokenizer(self.dict_path)
 
         enc_input = preprocess_request(sentence=request, tokenizer=tokenizer,
-                                       max_length=self.max_length, start_sign=start_sign, end_sign=end_sign)
+                                       max_length=self.max_sentence, start_sign=start_sign, end_sign=end_sign)
         enc_output, states = self.encoder(inputs=enc_input)
         dec_input = tf.expand_dims([tokenizer.word_index.get(start_sign)], 0)
 
-        beam_search_container = BeamSearch(beam_size=beam_size, max_length=self.max_length, worst_score=0)
+        beam_search_container = BeamSearch(beam_size=beam_size, max_length=self.max_sentence, worst_score=0)
         beam_search_container.reset(enc_output=enc_output, dec_input=dec_input, remain=states)
         enc_output, dec_input, states = beam_search_container.get_search_inputs()
 
-        for t in range(self.max_length):
+        for t in range(self.max_sentence):
             predictions, _, _ = self.decoder(inputs=[dec_input, enc_output, states])
             predictions = tf.nn.softmax(predictions, axis=-1)
 
