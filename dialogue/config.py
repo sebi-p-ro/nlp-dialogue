@@ -19,6 +19,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+common = {}
+
+transformer = {}
+
 class Config(object):
     def __str__(self):
         print()
@@ -26,4 +30,4 @@ class Config(object):
     __repr__ = __str__
 
     def __getitem__(self, item):
-        pass
+        return a + b
